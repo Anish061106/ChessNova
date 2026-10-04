@@ -2,6 +2,15 @@ import { prisma } from '../database/prisma.js';
 import { Chess } from 'chess.js';
 import { logger } from '../../utils/logger.js';
 
+function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 800): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Database query timed out')), timeoutMs)
+    ),
+  ]);
+}
+
 export interface PuzzleDTO {
   id: string;
   fen: string;
@@ -151,15 +160,17 @@ export class PuzzleService {
         if (maxRating) where.rating.lte = maxRating;
       }
 
-      const [puzzles, total] = await Promise.all([
-        prisma.puzzle.findMany({
-          where,
-          take: Math.min(limit, 50),
-          skip: offset,
-          orderBy: { rating: 'asc' },
-        }),
-        prisma.puzzle.count({ where }),
-      ]);
+      const [puzzles, total] = await withDbTimeout(
+        Promise.all([
+          prisma.puzzle.findMany({
+            where,
+            take: Math.min(limit, 50),
+            skip: offset,
+            orderBy: { rating: 'asc' },
+          }),
+          prisma.puzzle.count({ where }),
+        ])
+      );
 
       return {
         puzzles: puzzles.map((p) => this.toDTO(p)),
@@ -200,9 +211,11 @@ export class PuzzleService {
    */
   async getPuzzleById(puzzleId: string): Promise<PuzzleDTO | null> {
     try {
-      const puzzle = await prisma.puzzle.findUnique({
-        where: { id: puzzleId },
-      });
+      const puzzle = await withDbTimeout(
+        prisma.puzzle.findUnique({
+          where: { id: puzzleId },
+        })
+      );
       if (puzzle) return this.toDTO(puzzle);
     } catch {
       // Fallback
@@ -305,10 +318,12 @@ export class PuzzleService {
     let solution: string[] | undefined;
 
     try {
-      const p = await prisma.puzzle.findUnique({
-        where: { id: puzzleId },
-        select: { solution: true },
-      });
+      const p = await withDbTimeout(
+        prisma.puzzle.findUnique({
+          where: { id: puzzleId },
+          select: { solution: true },
+        })
+      );
       if (p) solution = p.solution;
     } catch {
       // Fallback

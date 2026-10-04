@@ -32,17 +32,17 @@ export function useChessClock({
   // High-precision timing refs to prevent drift and avoid duplicate timers
   const intervalRef = useRef<number | null>(null);
   const turnStartTimeRef = useRef<number>(0);
-  const turnStartRemainingRef = useRef<number>(0);
+  const whiteRemainingRef = useRef<number>(initialTimeControl.minutes * 60 * 1000);
+  const blackRemainingRef = useRef<number>(initialTimeControl.minutes * 60 * 1000);
   const activeColorRef = useRef<Color | null>(null);
   const isRunningRef = useRef<boolean>(false);
   const isPausedRef = useRef<boolean>(false);
   const onTimeoutRef = useRef(onTimeout);
   const lastLowTimeAudioRef = useRef<number | null>(null);
+  const timeControlRef = useRef<TimeControl>(initialTimeControl);
 
   onTimeoutRef.current = onTimeout;
-  activeColorRef.current = activeColor;
-  isRunningRef.current = isRunning;
-  isPausedRef.current = isPaused;
+  timeControlRef.current = timeControl;
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current !== null) {
@@ -59,9 +59,11 @@ export function useChessClock({
 
     const now = Date.now();
     const elapsed = now - turnStartTimeRef.current;
-    const remaining = Math.max(0, turnStartRemainingRef.current - elapsed);
+    const isWhite = activeColorRef.current === 'w';
+    const baseRemaining = isWhite ? whiteRemainingRef.current : blackRemainingRef.current;
+    const remaining = Math.max(0, baseRemaining - elapsed);
 
-    if (activeColorRef.current === 'w') {
+    if (isWhite) {
       setWhiteTimeMs(remaining);
     } else {
       setBlackTimeMs(remaining);
@@ -78,8 +80,10 @@ export function useChessClock({
     if (remaining <= 0) {
       clearTimer();
       setIsRunning(false);
+      isRunningRef.current = false;
       const timedOutPlayer = activeColorRef.current;
       setActiveColor(null);
+      activeColorRef.current = null;
       if (onTimeoutRef.current && timedOutPlayer) {
         onTimeoutRef.current(timedOutPlayer);
       }
@@ -87,10 +91,9 @@ export function useChessClock({
   }, [clearTimer]);
 
   const startTicking = useCallback(
-    (color: Color, currentRemaining: number) => {
+    (color: Color) => {
       clearTimer();
       turnStartTimeRef.current = Date.now();
-      turnStartRemainingRef.current = currentRemaining;
       activeColorRef.current = color;
       isRunningRef.current = true;
       isPausedRef.current = false;
@@ -108,31 +111,33 @@ export function useChessClock({
   // Start the clock for White when the first move is made or game starts
   const startGameClock = useCallback(() => {
     if (isRunningRef.current) return;
-    startTicking('w', whiteTimeMs);
-  }, [startTicking, whiteTimeMs]);
+    startTicking('w');
+  }, [startTicking]);
 
   // Switch clock after a validated legal chess move
   const switchTurn = useCallback(
     (completedTurnColor: Color) => {
       if (isPausedRef.current) return;
 
-      const incrementMs = timeControl.incrementSeconds * 1000;
+      const incrementMs = timeControlRef.current.incrementSeconds * 1000;
       const now = Date.now();
       const elapsed = turnStartTimeRef.current > 0 ? now - turnStartTimeRef.current : 0;
 
       if (completedTurnColor === 'w') {
-        const finalWhiteTime = Math.max(0, turnStartRemainingRef.current - elapsed) + incrementMs;
+        const finalWhiteTime = Math.max(0, whiteRemainingRef.current - elapsed) + incrementMs;
+        whiteRemainingRef.current = finalWhiteTime;
         setWhiteTimeMs(finalWhiteTime);
         // Switch to Black
-        startTicking('b', blackTimeMs);
+        startTicking('b');
       } else {
-        const finalBlackTime = Math.max(0, turnStartRemainingRef.current - elapsed) + incrementMs;
+        const finalBlackTime = Math.max(0, blackRemainingRef.current - elapsed) + incrementMs;
+        blackRemainingRef.current = finalBlackTime;
         setBlackTimeMs(finalBlackTime);
         // Switch to White
-        startTicking('w', whiteTimeMs);
+        startTicking('w');
       }
     },
-    [timeControl.incrementSeconds, blackTimeMs, whiteTimeMs, startTicking]
+    [startTicking]
   );
 
   // Pause local clock
@@ -141,14 +146,15 @@ export function useChessClock({
 
     const now = Date.now();
     const elapsed = now - turnStartTimeRef.current;
-    const remaining = Math.max(0, turnStartRemainingRef.current - elapsed);
 
     if (activeColorRef.current === 'w') {
-      setWhiteTimeMs(remaining);
-      turnStartRemainingRef.current = remaining;
+      const rem = Math.max(0, whiteRemainingRef.current - elapsed);
+      whiteRemainingRef.current = rem;
+      setWhiteTimeMs(rem);
     } else {
-      setBlackTimeMs(remaining);
-      turnStartRemainingRef.current = remaining;
+      const rem = Math.max(0, blackRemainingRef.current - elapsed);
+      blackRemainingRef.current = rem;
+      setBlackTimeMs(rem);
     }
 
     clearTimer();
@@ -159,11 +165,8 @@ export function useChessClock({
   // Resume local clock
   const resume = useCallback(() => {
     if (!isRunningRef.current || !isPausedRef.current || !activeColorRef.current) return;
-
-    const currentRemaining =
-      activeColorRef.current === 'w' ? whiteTimeMs : blackTimeMs;
-    startTicking(activeColorRef.current, currentRemaining);
-  }, [whiteTimeMs, blackTimeMs, startTicking]);
+    startTicking(activeColorRef.current);
+  }, [startTicking]);
 
   // Stop clock (on checkmate, draw, resign, timeout)
   const stop = useCallback(() => {
@@ -180,12 +183,15 @@ export function useChessClock({
   const reset = useCallback(
     (newControl?: TimeControl) => {
       clearTimer();
-      const tc = newControl || timeControl;
+      const tc = newControl || timeControlRef.current;
       if (newControl) {
         setTimeControl(newControl);
+        timeControlRef.current = newControl;
       }
 
       const initialMs = tc.minutes * 60 * 1000;
+      whiteRemainingRef.current = initialMs;
+      blackRemainingRef.current = initialMs;
       setWhiteTimeMs(initialMs);
       setBlackTimeMs(initialMs);
       setActiveColor(null);
@@ -194,12 +200,11 @@ export function useChessClock({
       lastLowTimeAudioRef.current = null;
 
       turnStartTimeRef.current = 0;
-      turnStartRemainingRef.current = initialMs;
       activeColorRef.current = null;
       isRunningRef.current = false;
       isPausedRef.current = false;
     },
-    [clearTimer, timeControl]
+    [clearTimer]
   );
 
   // Cleanup on unmount
