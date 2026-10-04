@@ -83,7 +83,7 @@ export class FriendService {
         },
       });
 
-      return friendships.map((f) => {
+      return friendships.map((f: any) => {
         const friend = f.requesterId === userId ? f.receiver : f.requester;
         return {
           friendshipId: f.id,

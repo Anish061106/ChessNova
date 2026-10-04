@@ -345,7 +345,7 @@ export class RatingService {
       }),
     ]);
 
-    const items = ratings.map((r, idx) => {
+    const items = ratings.map((r: any, idx: number) => {
       const winRate =
         r.gamesPlayed > 0 ? Math.round((r.wins / r.gamesPlayed) * 100) : 0;
 
