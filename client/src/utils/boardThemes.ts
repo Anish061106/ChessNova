@@ -1,0 +1,53 @@
+import { BoardThemeName, BoardThemeColors } from '../types/chess';
+
+export const BOARD_THEMES: Record<BoardThemeName, BoardThemeColors> = {
+  classic: {
+    name: 'Classic Tournament',
+    lightSquare: '#eeeed2',
+    darkSquare: '#769656',
+    selectedSquare: 'rgba(255, 255, 51, 0.5)',
+    lastMoveSquare: 'rgba(205, 210, 106, 0.65)',
+    legalMoveDot: 'rgba(20, 85, 30, 0.35)',
+    legalCaptureRing: 'rgba(20, 85, 30, 0.45)',
+    checkSquare: 'radial-gradient(ellipse at center, rgba(239, 68, 68, 1) 0%, rgba(220, 38, 38, 0.6) 45%, transparent 75%)',
+    coordinateLight: '#769656',
+    coordinateDark: '#eeeed2',
+  },
+  modern: {
+    name: 'Modern Slate',
+    lightSquare: '#e2e8f0',
+    darkSquare: '#475569',
+    selectedSquare: 'rgba(99, 102, 241, 0.45)',
+    lastMoveSquare: 'rgba(129, 140, 248, 0.35)',
+    legalMoveDot: 'rgba(79, 70, 229, 0.4)',
+    legalCaptureRing: 'rgba(79, 70, 229, 0.55)',
+    checkSquare: 'radial-gradient(ellipse at center, rgba(244, 63, 94, 1) 0%, rgba(225, 29, 72, 0.6) 45%, transparent 75%)',
+    coordinateLight: '#475569',
+    coordinateDark: '#e2e8f0',
+  },
+  midnight: {
+    name: 'Midnight Nova',
+    lightSquare: '#1e293b',
+    darkSquare: '#0f172a',
+    selectedSquare: 'rgba(56, 189, 248, 0.4)',
+    lastMoveSquare: 'rgba(99, 102, 241, 0.35)',
+    legalMoveDot: 'rgba(56, 189, 248, 0.5)',
+    legalCaptureRing: 'rgba(56, 189, 248, 0.65)',
+    checkSquare: 'radial-gradient(ellipse at center, rgba(239, 68, 68, 1) 0%, rgba(220, 38, 38, 0.7) 45%, transparent 75%)',
+    coordinateLight: '#64748b',
+    coordinateDark: '#94a3b8',
+  },
+  highContrast: {
+    name: 'High Contrast',
+    lightSquare: '#ffffff',
+    darkSquare: '#000000',
+    selectedSquare: 'rgba(255, 215, 0, 0.7)',
+    lastMoveSquare: 'rgba(0, 191, 255, 0.5)',
+    legalMoveDot: 'rgba(255, 215, 0, 0.8)',
+    legalCaptureRing: 'rgba(255, 0, 0, 0.8)',
+    checkSquare: 'radial-gradient(ellipse at center, rgba(255, 0, 0, 1) 0%, rgba(200, 0, 0, 0.8) 50%, transparent 80%)',
+    coordinateLight: '#000000',
+    coordinateDark: '#ffffff',
+  },
+};
+

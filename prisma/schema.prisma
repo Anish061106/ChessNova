@@ -1,0 +1,337 @@
+// ChessNova Prisma Schema
+// Phase 4: PostgreSQL Database & Data Architecture
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum GameType {
+  LOCAL
+  ONLINE
+  COMPUTER
+}
+
+enum GameResultStatus {
+  WHITE_WIN
+  BLACK_WIN
+  DRAW
+  ONGOING
+}
+
+enum TerminationReason {
+  CHECKMATE
+  TIMEOUT
+  RESIGNATION
+  STALEMATE
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  INSUFFICIENT_MATERIAL
+  AGREEMENT
+  ABORTED
+  UNKNOWN
+}
+
+enum RatingCategory {
+  BULLET
+  BLITZ
+  RAPID
+  CLASSICAL
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  GAME_INVITATION
+  GAME_RESULT
+  SYSTEM
+}
+
+// -----------------------------------------------------------------------------
+// USER & PROFILE MODELS
+// -----------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  avatarUrl    String?
+  displayName  String?
+  country      String?
+  bio          String?   @db.Text
+  isActive     Boolean   @default(true)
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // 1-to-1 User Settings
+  settings UserSettings?
+
+  // Games Played
+  gamesAsWhite Game[] @relation("WhitePlayer")
+  gamesAsBlack Game[] @relation("BlackPlayer")
+
+  // Ratings & Histories
+  ratings         Rating[]
+  ratingHistories RatingHistory[]
+
+  // Friendships (Initiated and Received)
+  friendshipsInitiated Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived  Friendship[] @relation("FriendshipReceiver")
+
+  // Game Invitations
+  sentInvitations     GameInvitation[] @relation("InvitationSender")
+  receivedInvitations GameInvitation[] @relation("InvitationReceiver")
+
+  // Chat & Social
+  chatMessages   ChatMessage[]
+  puzzleAttempts PuzzleAttempt[]
+  notifications  Notification[]
+
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model UserSettings {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme             String   @default("dark")
+  boardTheme        String   @default("classic")
+  pieceSet          String   @default("classic")
+  soundEnabled      Boolean  @default(true)
+  animationEnabled  Boolean  @default(true)
+  showLegalMoves    Boolean  @default(true)
+  showCoordinates   Boolean  @default(true)
+  highlightLastMove Boolean  @default(true)
+  confirmMoves      Boolean  @default(false)
+  autoQueen         Boolean  @default(false)
+  animationSpeed    String   @default("normal")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// GAME & MOVE MODELS
+// -----------------------------------------------------------------------------
+
+model Game {
+  id                String             @id @default(uuid())
+  whitePlayerId     String?
+  whitePlayer       User?              @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: SetNull)
+  blackPlayerId     String?
+  blackPlayer       User?              @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: SetNull)
+  gameType          GameType           @default(LOCAL)
+  timeControl       String             @default("5+3")
+  initialTime       Int                @default(300) // seconds (e.g. 300)
+  increment         Int                @default(3)   // seconds (e.g. 3)
+  rated             Boolean            @default(false)
+  initialFen        String             @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  finalFen          String?
+  result            GameResultStatus   @default(ONGOING)
+  terminationReason TerminationReason?
+  pgn               String?            @db.Text
+  startedAt         DateTime           @default(now())
+  endedAt           DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Moves list (ordered by ply)
+  moves Move[]
+
+  // Real-time Chat
+  chatMessages ChatMessage[]
+
+  // Rating tracking references
+  ratingHistories RatingHistory[]
+
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([createdAt])
+  @@index([result])
+  @@index([rated])
+}
+
+model Move {
+  id         String   @id @default(uuid())
+  gameId     String
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  moveNumber Int // 1, 2, 3...
+  ply        Int // 1, 2, 3... (Half-move number)
+  color      String // "w" | "b"
+  from       String // e.g. "e2"
+  to         String // e.g. "e4"
+  san        String // e.g. "e4", "Nf3", "O-O"
+  uci        String // e.g. "e2e4", "g1f3"
+  fen        String // Board FEN after this move
+  createdAt  DateTime @default(now())
+
+  @@unique([gameId, ply])
+  @@index([gameId])
+  @@index([gameId, moveNumber])
+}
+
+// -----------------------------------------------------------------------------
+// RATING & RATING HISTORY MODELS
+// -----------------------------------------------------------------------------
+
+model Rating {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    RatingCategory
+  rating      Int            @default(1500)
+  gamesPlayed Int            @default(0)
+  wins        Int            @default(0)
+  losses      Int            @default(0)
+  draws       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, category])
+  @@index([userId, category, rating])
+}
+
+model RatingHistory {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     RatingCategory
+  gameId       String?
+  game         Game?          @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  ratingBefore Int
+  ratingChange Int
+  ratingAfter  Int
+  createdAt    DateTime       @default(now())
+
+  @@index([userId, category, createdAt])
+  @@index([gameId])
+}
+
+// -----------------------------------------------------------------------------
+// SOCIAL & COMMUNICATIONS
+// -----------------------------------------------------------------------------
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User             @relation("FriendshipReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([requesterId, receiverId])
+  @@index([requesterId, receiverId, status])
+}
+
+model GameInvitation {
+  id          String           @id @default(uuid())
+  senderId    String
+  sender      User             @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User             @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  timeControl String           @default("5+3")
+  rated       Boolean          @default(false)
+  status      InvitationStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  expiresAt   DateTime
+
+  @@index([senderId, receiverId, status])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  message   String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  @@index([gameId, createdAt])
+  @@index([senderId])
+}
+
+// -----------------------------------------------------------------------------
+// PUZZLES & NOTIFICATIONS
+// -----------------------------------------------------------------------------
+
+model Puzzle {
+  id         String   @id @default(uuid())
+  fen        String
+  pgn        String?  @db.Text
+  rating     Int      @default(1500)
+  difficulty String   @default("medium") // easy, medium, hard
+  themes     String[]
+  solution   String[] // Array of UCI moves, e.g. ["e2e4", "e7e5"]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  attempts PuzzleAttempt[]
+
+  @@index([rating])
+  @@index([difficulty])
+}
+
+model PuzzleAttempt {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  puzzleId  String
+  puzzle    Puzzle   @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  correct   Boolean
+  moves     String[]
+  timeTaken Int // duration in seconds/ms
+  createdAt DateTime @default(now())
+
+  @@index([userId, puzzleId])
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read, createdAt])
+}
+
+model SystemMeta {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

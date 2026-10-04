@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="favicon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="star-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer rounded background for favicon visibility -->
+  <rect width="64" height="64" rx="14" fill="#080c16" />
+  <rect x="1" y="1" width="62" height="62" rx="13" stroke="url(#favicon-grad)" stroke-width="1.5" stroke-opacity="0.4" />
+
+  <!-- Modern Geometric Knight Silhouette -->
+  <path d="M18 48H46V45C46 45 44 41 40 40C39 37 40 33 43 30C45 28 47 24 45 19C43 14 38 12 34 13C33 13 32 11 29 11C25 11 22 13 20 16C18 19 18 23 20 25L23 27C21 30 19 33 19 37L18 48Z" 
+        fill="url(#favicon-grad)" />
+
+  <!-- Nova 4-Point Star in eye/crest position -->
+  <path d="M37 22C37 25 39 27 42 27C39 27 37 29 37 32C37 29 35 27 32 27C35 27 37 25 37 22Z" 
+        fill="url(#star-grad)" />
+  
+  <!-- Subtle accent slash -->
+  <path d="M22 43H42" stroke="#080c16" stroke-width="2" stroke-linecap="round" />
+</svg>
