@@ -23,6 +23,7 @@
     "@types/node": "^22.10.1",
     "bcryptjs": "^3.0.3",
     "chess.js": "^1.4.0",
+    "chessnova": "file:..",
     "cookie": "^2.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
