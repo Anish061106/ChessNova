@@ -276,10 +276,15 @@ export const Play: React.FC = () => {
     if (isGameOver || isPaused) return;
     if (playMode === 'computer' && (isAiThinking || turn !== computerHumanColor)) return;
 
-    if (settings.confirmMoves && selectedSquare) {
+    if (selectedSquare) {
+      if (selectedSquare === square) {
+        selectSquare(square);
+        return;
+      }
+
       const isDest = legalDestinations.some((d) => d.square === square);
       if (isDest) {
-        setPendingConfirmMove({ from: selectedSquare, to: square });
+        handleMoveAttempt(selectedSquare, square);
         return;
       }
     }
@@ -296,17 +301,33 @@ export const Play: React.FC = () => {
       return;
     }
 
+    const currentTurn = turn;
     const success = makeMove(from, to);
     if (success) {
-      switchTurn(turn);
+      switchTurn(currentTurn);
       if (playMode === 'computer' && !isGameOver) {
         const nextFen = getFen();
         const aiColor: Color = computerHumanColor === 'w' ? 'b' : 'w';
         const currentSession = aiSessionIdRef.current;
         setTimeout(() => {
           triggerAiTurn(nextFen, aiColor, currentSession);
-        }, 150);
+        }, 200);
       }
+    }
+  };
+
+  const handlePromotionSelect = (promotionPiece: PieceSymbol) => {
+    if (!pendingPromotion) return;
+    const currentTurn = turn;
+    confirmPromotion(promotionPiece);
+    switchTurn(currentTurn);
+    if (playMode === 'computer' && !isGameOver) {
+      const nextFen = getFen();
+      const aiColor: Color = computerHumanColor === 'w' ? 'b' : 'w';
+      const currentSession = aiSessionIdRef.current;
+      setTimeout(() => {
+        triggerAiTurn(nextFen, aiColor, currentSession);
+      }, 200);
     }
   };
 
@@ -314,16 +335,17 @@ export const Play: React.FC = () => {
     if (!pendingConfirmMove) return;
     const { from, to } = pendingConfirmMove;
     setPendingConfirmMove(null);
+    const currentTurn = turn;
     const success = makeMove(from, to);
     if (success) {
-      switchTurn(turn);
+      switchTurn(currentTurn);
       if (playMode === 'computer' && !isGameOver) {
         const nextFen = getFen();
         const aiColor: Color = computerHumanColor === 'w' ? 'b' : 'w';
         const currentSession = aiSessionIdRef.current;
         setTimeout(() => {
           triggerAiTurn(nextFen, aiColor, currentSession);
-        }, 150);
+        }, 200);
       }
     }
   };
@@ -1123,7 +1145,7 @@ export const Play: React.FC = () => {
       <PromotionModal
         isOpen={Boolean(pendingPromotion)}
         color={turn}
-        onSelect={confirmPromotion}
+        onSelect={handlePromotionSelect}
         onCancel={cancelPromotion}
       />
 

@@ -92,13 +92,47 @@ describe('Phase 12: Stockfish Engine & AI Configuration', () => {
       stockfishService.stop();
     });
 
-    it('returns a best move through the service facade', async () => {
+    it('returns a best move through the service facade for all 5 difficulty levels', async () => {
       const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      const session = stockfishService.createNewSession();
-      const res = await stockfishService.requestBestMove(fen, 'beginner', session);
-      expect(res.from).toBeDefined();
-      expect(res.to).toBeDefined();
-    });
+      const levels: AIDifficulty[] = ['beginner', 'easy', 'medium', 'hard', 'expert'];
+
+      for (const lvl of levels) {
+        const session = stockfishService.createNewSession();
+        const res = await stockfishService.requestBestMove(fen, lvl, session);
+        expect(res).toBeDefined();
+        expect(res.from).toMatch(/^[a-h][1-8]$/);
+        expect(res.to).toMatch(/^[a-h][1-8]$/);
+
+        const chess = new Chess(fen);
+        const legalMove = chess.move({
+          from: res.from as any,
+          to: res.to as any,
+          promotion: res.promotion as any,
+        });
+        expect(legalMove).not.toBeNull();
+      }
+    }, 15000);
+
+    it('generates moves for Black across all 5 difficulty levels', async () => {
+      const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+      const levels: AIDifficulty[] = ['beginner', 'easy', 'medium', 'hard', 'expert'];
+
+      for (const lvl of levels) {
+        const session = stockfishService.createNewSession();
+        const res = await stockfishService.requestBestMove(fen, lvl, session);
+        expect(res).toBeDefined();
+        expect(res.from).toMatch(/^[a-h][1-8]$/);
+        expect(res.to).toMatch(/^[a-h][1-8]$/);
+
+        const chess = new Chess(fen);
+        const legalMove = chess.move({
+          from: res.from as any,
+          to: res.to as any,
+          promotion: res.promotion as any,
+        });
+        expect(legalMove).not.toBeNull();
+      }
+    }, 15000);
 
     it('rejects / ignores stale responses if session ID has changed', async () => {
       const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
